@@ -17,17 +17,17 @@ else
     exit 1
 fi
 
-# Continue with the IPsec status check and ping test as before
+# Use swanctl to check the connection status
 echo "Checking IPsec tunnel status..."
-ipsec status | grep "$REMOTE_IP" &> /dev/null
+swanctl --list-sas | grep "$REMOTE_IP" &> /dev/null
 
 if [ $? -eq 0 ]; then
     echo "IPsec tunnel to $REMOTE_IP is up."
 else
     echo "IPsec tunnel to $REMOTE_IP is down. Attempting to start it..."
-    ipsec up host-host
+    swanctl --initiate --child host-host
     sleep 5 # Wait a bit for the connection to establish
-    ipsec status | grep "$REMOTE_IP" &> /dev/null
+    swanctl --list-sas | grep "$REMOTE_IP" &> /dev/null
     if [ $? -eq 0 ]; then
         echo "IPsec tunnel to $REMOTE_IP is now up."
     else
