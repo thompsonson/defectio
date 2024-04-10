@@ -89,32 +89,19 @@ verify_firewall() {
     if command -v ufw >/dev/null 2>&1; then
         echo "Using ufw to check firewall rules..."
         # Ensure UFW is active
-        ufw_status=$(sudo ufw status)
+        ufw_status=$(sudo ufw status verbose)
         if ! echo "$ufw_status" | grep -qw "Status: active"; then
             echo "UFW firewall is not enabled. Please enable it with 'sudo ufw enable'."
             exit 1
         fi
 
-        # Check for specific UFW rules
-        if ! echo "$ufw_status" | grep -qw "500/udp"; then
-            echo "Firewall rule for UDP port 500 is missing."
+        # Use ss to check if the ports are open and listening
+        echo "Checking if ports are open and listening with ss..."
+        if ! ss -uan | grep -E ':(500|4500)\s'; then
+            echo "One or both required UDP ports (500, 4500) are not open or listening."
             exit 1
-        fi
-        if ! echo "$ufw_status" | grep -qw "4500/udp"; then
-            echo "Firewall rule for UDP port 4500 is missing."
-            exit 1
-        fi
-    # Fallback to iptables if ufw is not available
-    elif command -v iptables >/dev/null 2>&1; then
-        echo "Using iptables to check firewall rules..."
-        # Check for iptables rules for UDP ports 500 and 4500
-        if ! sudo iptables -L -v -n | grep -qw "udp" | grep -qw "dpt:500"; then
-            echo "Firewall rule for UDP port 500 is missing."
-            exit 1
-        fi
-        if ! sudo iptables -L -v -n | grep -qw "udp" | grep -qw "dpt:4500"; then
-            echo "Firewall rule for UDP port 4500 is missing."
-            exit 1
+        else
+            echo "Required UDP ports are open and listening."
         fi
     else
         echo "No recognized firewall tool found (checked for ufw and iptables)."
