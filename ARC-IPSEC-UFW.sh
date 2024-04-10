@@ -20,7 +20,9 @@ add_rules_if_not_present() {
 
     if ! grep -qF "$rule_indicator" "$file_path"; then
         echo "Adding rules for $rule_indicator protocol to $file_path"
-        echo "$rule_set" | sudo tee -a "$file_path" > /dev/null
+        # Find the line number of the last occurrence of 'COMMIT' and insert rules before it
+        local commit_line=$(grep -n 'COMMIT' "$file_path" | tail -1 | cut -d: -f1)
+        sudo sed -i "${commit_line}i\\$rule_set" "$file_path"
     else
         echo "Rules for $rule_indicator protocol already configured in $file_path"
     fi

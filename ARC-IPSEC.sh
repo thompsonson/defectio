@@ -1,20 +1,5 @@
 #!/bin/bash
 
-# Install StrongSwan, the swanctl utility, and commonly used plugins
-echo "Installing StrongSwan, swanctl, and required plugins..."
-sudo apt-get install -y strongswan strongswan-pki libstrongswan-extra-plugins strongswan-swanctl
-
-# Install additional utilities that might be useful
-echo "Installing additional utilities..."
-sudo apt-get install -y charon-systemd libcharon-extra-plugins libcharon-standard-plugins
-
-# Verify installation
-echo "Verifying installation..."
-ipsec version
-swanctl --version
-
-echo "StrongSwan and swanctl installation completed successfully."
-
 # Function to determine host role
 determine_role() {
   HOST_IP=$(hostname -I | awk '{print $1}') # Simplistic IP retrieval; might need adjustment
@@ -100,19 +85,29 @@ EOF
 verify_firewall() {
     echo "Verifying firewall configuration for IPsec..."
 
-    # Check for iptables or ufw
+    # Check for ufw and ensure it's active
     if command -v ufw >/dev/null 2>&1; then
         echo "Using ufw to check firewall rules..."
-        if ! sudo ufw status | grep -qw "500/udp"; then
+        # Ensure UFW is active
+        ufw_status=$(sudo ufw status)
+        if ! echo "$ufw_status" | grep -qw "Status: active"; then
+            echo "UFW firewall is not enabled. Please enable it with 'sudo ufw enable'."
+            exit 1
+        fi
+
+        # Check for specific UFW rules
+        if ! echo "$ufw_status" | grep -qw "500/udp"; then
             echo "Firewall rule for UDP port 500 is missing."
             exit 1
         fi
-        if ! sudo ufw status | grep -qw "4500/udp"; then
+        if ! echo "$ufw_status" | grep -qw "4500/udp"; then
             echo "Firewall rule for UDP port 4500 is missing."
             exit 1
         fi
+    # Fallback to iptables if ufw is not available
     elif command -v iptables >/dev/null 2>&1; then
         echo "Using iptables to check firewall rules..."
+        # Check for iptables rules for UDP ports 500 and 4500
         if ! sudo iptables -L -v -n | grep -qw "udp" | grep -qw "dpt:500"; then
             echo "Firewall rule for UDP port 500 is missing."
             exit 1
@@ -128,7 +123,6 @@ verify_firewall() {
 
     echo "Firewall configuration for IPsec is correct."
 }
-
 
 ROLE=$(determine_role)
 
